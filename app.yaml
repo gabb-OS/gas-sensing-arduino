@@ -1,6 +1,5 @@
 name: GasSensing
 description: ""
 ports: []
-bricks:
-- airball_model: {}
+bricks: []
 icon: 🔥
