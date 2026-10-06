@@ -9,6 +9,20 @@ Adafruit_BME680 bme(&Wire);
 
 const unsigned long READ_INTERVAL_MS = 1000;   // 1 Hz: same rate used for training data
 
+// ---------------- LEDs (UNO Q RGB LEDs are ACTIVE LOW: LOW = on) ----------------
+// LED 3 = the RGB LED marked "STM 3" on the board
+#define LED_ON    LOW
+#define LED_OFF   HIGH
+#define LED_REC   LED3_R      // red   = recording (LED3_R is LED_BUILTIN)
+#define LED_HAND  LED3_G      // green = HAND
+#define LED_AIR   LED3_B      // blue  = AIR
+
+void ledsOff() {
+  digitalWrite(LED_REC,  LED_OFF);
+  digitalWrite(LED_HAND, LED_OFF);
+  digitalWrite(LED_AIR,  LED_OFF);
+}
+
 // ---------------- Operating mode ----------------
 enum Mode { MODE_SELECT, MODE_RECORD, MODE_INFER };
 Mode mode = MODE_SELECT;
@@ -25,10 +39,13 @@ void printMenu() {
 void setup() {
   Monitor.begin();
   Bridge.begin();
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_REC, OUTPUT);
+  pinMode(LED_HAND, OUTPUT);
+  pinMode(LED_AIR, OUTPUT);
+  ledsOff();
   Wire.begin();
 
-  Bridge.provide_safe("set_hand", setHand);   // result from Python
+  Bridge.provide_safe("set_hand", setHand);
 
   if (!bme.begin(BME_ADDR)) {
     Monitor.println("BME688 not found.");
@@ -49,7 +66,7 @@ void setup() {
 void setRecording(bool on) {
   if (on == recording) return;
   recording = on;
-  digitalWrite(LED_BUILTIN, recording ? HIGH : LOW);
+  digitalWrite(LED_REC, recording ? LED_ON : LED_OFF);
   if (recording) {
     startTime = millis();
     lastRead = 0;
@@ -122,13 +139,14 @@ void recordingLoop() {
 void setHand(bool on) {
   if (mode != MODE_INFER) return;          // ignore late results after "stop"
   handDetected = on;
-  digitalWrite(LED_BUILTIN, handDetected ? HIGH : LOW);
+  digitalWrite(LED_HAND, on ? LED_ON  : LED_OFF);   // green = HAND
+  digitalWrite(LED_AIR,  on ? LED_OFF : LED_ON);    // blue  = AIR
 }
 
 void startInference() {
   mode = MODE_INFER;
   handDetected = false;
-  digitalWrite(LED_BUILTIN, LOW);
+  ledsOff();                               // all off until the first decision
   lastRead = 0;
   Bridge.notify("inference", 1);
   Monitor.println("INFERENCE start. Command: stop");
@@ -138,7 +156,7 @@ void stopInference() {
   Bridge.notify("inference", 0);
   mode = MODE_SELECT;
   handDetected = false;
-  digitalWrite(LED_BUILTIN, LOW);
+  ledsOff();
   Monitor.println("INFERENCE stop");
   printMenu();
 }
